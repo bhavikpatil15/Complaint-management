@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Complaint — GrievEase</title>
+  <meta name="description" content="Submit a new complaint to GrievEase">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="page-content">
+    <div class="container" style="max-width:720px">
+      <div class="page-header">
+        <h1 class="headline-lg">📝 Submit New Complaint</h1>
+        <p class="body-md" style="color:#43474F">Fill in the details below. Your complaint will be reviewed by the concerned department.</p>
+      </div>
+
+      <div class="card">
+        <form id="complaint-form">
+          <!-- Title -->
+          <div class="form-group">
+            <label class="form-label">Complaint Title *</label>
+            <input type="text" class="form-input" id="complaint-title" placeholder="Brief title for your complaint" required>
+          </div>
+
+          <!-- Department -->
+          <div class="form-group">
+            <label class="form-label">Department *</label>
+            <select class="form-select" id="complaint-dept" required>
+              <option value="">Select Department</option>
+              <option>Computer</option>
+              <option>IT</option>
+              <option>Electronics</option>
+              <option>Mechanical</option>
+              <option>Civil</option>
+              <option>Chemical</option>
+            </select>
+          </div>
+
+          <!-- Category -->
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select class="form-select" id="complaint-category" required>
+              <option value="">Select Category</option>
+              <option>Infrastructure</option>
+              <option>Academic</option>
+              <option>Hostel</option>
+              <option>Lab Equipment</option>
+              <option>Canteen</option>
+              <option>Library</option>
+              <option>Transport</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea class="form-textarea" id="complaint-desc" placeholder="Describe your complaint in detail..." required minlength="20"></textarea>
+            <div class="form-hint">Minimum 20 characters. Be specific and include relevant details.</div>
+          </div>
+
+          <!-- Urgency -->
+          <div class="form-group">
+            <label class="form-label">Urgency Level *</label>
+            <select class="form-select" id="complaint-urgency" required>
+              <option value="">Select Urgency</option>
+              <option value="Low">🟢 Low — Can wait</option>
+              <option value="Medium">🟡 Medium — Needs attention</option>
+              <option value="High">🔴 High — Urgent</option>
+              <option value="Critical">🟣 Critical — Immediate action needed</option>
+            </select>
+          </div>
+
+          <!-- Anonymous Toggle -->
+          <div class="form-group">
+            <label class="form-label">Submit Anonymously</label>
+            <div class="toggle-container">
+              <div class="toggle-switch" id="anonymous-toggle">
+                <div class="toggle-knob"></div>
+              </div>
+              <span class="body-md">Hide my identity from the department</span>
+            </div>
+          </div>
+
+          <!-- Image Upload -->
+          <div class="form-group">
+            <label class="form-label">Attach Image (Optional)</label>
+            <input type="file" class="form-input" id="complaint-image" accept="image/*">
+            <div class="form-hint">Max 2MB. Supported: JPG, PNG, GIF</div>
+            <div id="image-preview" style="margin-top:12px"></div>
+          </div>
+
+          <!-- Submit -->
+          <div id="similar-complaints-container" style="margin-bottom: 24px; display: none;"></div>
+          <button type="submit" class="btn btn-primary btn-block">Submit Complaint →</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = initPage('New Complaint', ['student', 'faculty']);
+      
+      const toggleSwitch = document.getElementById('anonymous-toggle');
+      const imageInput = document.getElementById('complaint-image');
+      const imagePreview = document.getElementById('image-preview');
+      const form = document.getElementById('complaint-form');
+      
+      let isAnonymous = false;
+      let imageBase64 = null;
+
+      // Handle Anonymous Toggle
+      toggleSwitch.addEventListener('click', () => {
+        isAnonymous = !isAnonymous;
+        toggleSwitch.classList.toggle('active', isAnonymous);
+      });
+
+      // Handle Image Upload
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          if (file.size > 2 * 1024 * 1024) { // 2MB
+            showToast('Image size should be less than 2MB', 'error');
+            imageInput.value = '';
+            imageBase64 = null;
+            imagePreview.innerHTML = '';
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            imageBase64 = event.target.result;
+            imagePreview.innerHTML = `<img src="${imageBase64}" alt="Preview" style="max-width:200px; max-height:200px; border-radius:8px; border:1px solid #ddd;">`;
+          };
+          reader.readAsDataURL(file);
+        } else {
+          imageBase64 = null;
+          imagePreview.innerHTML = '';
+        }
+      });
+
+      const deptSelect = document.getElementById('complaint-dept');
+      const catSelect = document.getElementById('complaint-category');
+      const similarContainer = document.getElementById('similar-complaints-container');
+
+      const checkSimilarComplaints = () => {
+        const dept = deptSelect.value;
+        const cat = catSelect.value;
+        console.log('[Similar] Step 1 — checkSimilarComplaints triggered. Dept:', dept, '| Cat:', cat);
+
+        if (!dept || !cat) {
+          console.log('[Similar] Step 1 SKIP — dept or cat is empty, hiding container.');
+          similarContainer.style.display = 'none';
+          return;
+        }
+
+        const complaints = getComplaints();
+        console.log('[Similar] Step 2 — getComplaints() returned', complaints.length, 'item(s):', complaints);
+
+        if (complaints.length === 0) {
+          console.warn('[Similar] Step 2 WARN — complaints array is empty. Either localStorage is clear or initSeedData has not run.');
+        }
+
+        const similar = complaints.filter(c => {
+          const deptMatch = c.department === dept;
+          const catMatch  = c.category  === cat;
+          const notResolved = c.status !== 'Resolved';
+          const notRejected = c.status !== 'Rejected';
+          const match = deptMatch && catMatch && notResolved && notRejected;
+          console.log(
+            `[Similar] Step 3 — complaint ${c.id} ("${c.title}"):`,
+            `dept match=${deptMatch} ("${c.department}" vs "${dept}"),`,
+            `cat match=${catMatch} ("${c.category}" vs "${cat}"),`,
+            `status="${c.status}" → notResolved=${notResolved}, notRejected=${notRejected}`,
+            `→ MATCH=${match}`
+          );
+          return match;
+        });
+
+        console.log('[Similar] Step 4 — Filtered similar complaints:', similar.length, 'match(es):', similar);
+
+        if (similar.length > 0) {
+          console.log('[Similar] Step 5 — Rendering', similar.length, 'card(s) into #similar-complaints-container.');
+          similarContainer.style.display = 'block';
+          similarContainer.innerHTML = `
+            <div style="background: #F0F7FF; border: 1.5px solid #BFDBFE; border-radius: 12px; padding: 16px;">
+              <h4 class="headline-sm" style="margin-bottom: 4px; color: #1E3A8A;">⚠️ Wait, is this your issue too?</h4>
+              <p class="body-md" style="font-size: 13px; color: #43474F; margin-bottom: 16px;">We found similar active complaints. You can upvote them instead of creating a duplicate!</p>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                ${similar.map(c => `
+                  <div class="card" style="padding: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; border: 1px solid #C3C6D1;">
+                    <div>
+                      <div class="headline-sm" style="font-size: 14px;">${c.title}</div>
+                      <div class="body-md" style="font-size: 12px; color: #737780; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">${c.description}</div>
+                      <div style="margin-top: 8px;">
+                        <span class="status-badge ${getStatusClass(c.status)}" style="padding: 2px 8px; font-size: 10px;">${c.status}</span>
+                        <span style="font-size: 12px; color: #F59E0B; margin-left: 8px; font-weight: 600;">⬆ ${c.upvotes || 0} Upvotes</span>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-small" onclick="handleUpvote('${c.id}')" style="white-space: nowrap; margin-left: 16px;">This is my issue too</button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } else {
+          console.log('[Similar] Step 5 — No matches found, hiding container.');
+          similarContainer.style.display = 'none';
+        }
+      };
+
+      deptSelect.addEventListener('change', checkSimilarComplaints);
+      catSelect.addEventListener('change', checkSimilarComplaints);
+
+      window.handleUpvote = (id) => {
+        try {
+          console.log('[Similar] handleUpvote called for complaint id:', id);
+
+          // Guard: user must be authenticated
+          if (!user) {
+            console.error('[Similar] handleUpvote ERROR — no active user session.');
+            showToast('You must be logged in to upvote.', 'error');
+            return;
+          }
+
+          const complaints = getComplaints();
+          console.log('[Similar] handleUpvote — all complaints from storage:', complaints.length);
+
+          const c = complaints.find(x => x.id === id);
+          console.log('[Similar] handleUpvote — found complaint:', c);
+
+          if (!c) {
+            console.error('[Similar] handleUpvote ERROR — complaint not found in localStorage for id:', id);
+            showToast('Complaint not found. It may have been removed.', 'error');
+            return;
+          }
+
+          if (c.upvotedBy && c.upvotedBy.includes(user.id)) {
+            console.warn('[Similar] handleUpvote — user already upvoted this complaint.');
+            showToast('You have already upvoted this complaint.', 'info');
+            return;
+          }
+
+          const updated = upvoteComplaint(id, user.id);
+          console.log('[Similar] handleUpvote — upvoteComplaint result:', updated);
+
+          showToast('Complaint upvoted! Redirecting…', 'success');
+          setTimeout(() => {
+            window.location.href = 'track.html?id=' + id;
+          }, 1000);
+        } catch (e) {
+          console.error('[Similar] handleUpvote EXCEPTION:', e);
+          showToast('Something went wrong while upvoting. Check console for details.', 'error');
+        }
+      };
+
+      // Handle Form Submit
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const desc = document.getElementById('complaint-desc').value.trim();
+        if (desc.length < 20) {
+          showToast('Description must be at least 20 characters', 'error');
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const complaint = {
+          id: generateId(),
+          title: document.getElementById('complaint-title').value.trim(),
+          department: document.getElementById('complaint-dept').value,
+          category: document.getElementById('complaint-category').value,
+          description: desc,
+          urgency: document.getElementById('complaint-urgency').value,
+          status: 'Submitted',
+          userId: user.id,
+          userName: isAnonymous ? 'Anonymous' : user.name,
+          type: 'student',
+          anonymous: isAnonymous,
+          image: imageBase64,
+          upvotes: 0,
+          upvotedBy: [],
+          createdAt: now,
+          updatedAt: now,
+          timeline: [{ status: 'Submitted', date: now, remark: 'Complaint submitted.' }],
+          adminRemark: null
+        };
+
+        addComplaint(complaint);
+        showToast('Complaint submitted successfully and added to the Community Board!', 'success');
+        
+        setTimeout(() => {
+          window.location.href = 'community.html?fresh=' + Date.now();
+        }, 1000);
+      });
+    });
+  </script>
+</body>
+</html>

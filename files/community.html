@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Board — GrievEase</title>
+  <meta name="description" content="Browse and upvote active complaints from the GrievEase community">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* ── Community Board extras ── */
+    .community-hero {
+      background: linear-gradient(135deg, var(--primary) 0%, #1D4ED8 100%);
+      border-radius: 20px;
+      padding: 32px 36px;
+      margin-bottom: 32px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+    .community-hero-text h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .community-hero-text p {
+      font-size: 14px;
+      opacity: 0.82;
+      line-height: 1.5;
+    }
+    .community-stats {
+      display: flex;
+      gap: 24px;
+      flex-shrink: 0;
+    }
+    .community-stat {
+      text-align: center;
+    }
+    .community-stat-num {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .community-stat-label {
+      font-size: 11px;
+      opacity: 0.75;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 2px;
+    }
+
+    .search-bar-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-bar-wrap input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      border: 1px solid var(--outline-variant);
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: 'Work Sans', sans-serif;
+      background: var(--surface);
+      color: var(--on-surface);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-bar-wrap input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0,51,102,0.1);
+    }
+    .search-bar-wrap .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .sort-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .sort-tab {
+      padding: 7px 16px;
+      border-radius: 9999px;
+      border: 1.5px solid var(--outline-variant);
+      background: var(--surface);
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--on-surface-variant);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .sort-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .sort-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    /* community card */
+    .community-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 20px 24px;
+      box-shadow: var(--shadow-1);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      transition: box-shadow 0.2s, transform 0.2s;
+      animation: fadeIn 0.3s ease;
+    }
+    .community-card:hover {
+      box-shadow: var(--shadow-2);
+      transform: translateY(-2px);
+    }
+    .community-card-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--on-surface);
+      margin-bottom: 6px;
+    }
+    .community-card-desc {
+      font-size: 13px;
+      color: var(--on-surface-variant);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .community-card-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .meta-chip {
+      background: var(--surface-container);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--on-surface-variant);
+    }
+
+    .upvote-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 60px;
+    }
+    .upvote-big-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      border: 2px solid var(--outline-variant);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 20px;
+      transition: all 0.2s;
+      line-height: 1;
+    }
+    .upvote-big-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: #FFF7ED;
+      transform: scale(1.06);
+    }
+    .upvote-big-btn.voted {
+      border-color: var(--accent);
+      background: #FFF7ED;
+    }
+    .upvote-big-btn .upvote-count {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 2px;
+    }
+    .upvote-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--outline);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .results-count {
+      font-size: 13px;
+      color: var(--outline);
+      font-weight: 500;
+    }
+
+    .active-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      min-height: 28px;
+    }
+    .filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 9999px;
+      padding: 4px 10px 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #1D4ED8;
+    }
+    .filter-pill-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #1D4ED8;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      opacity: 0.7;
+    }
+    .filter-pill-close:hover { opacity: 1; }
+
+    @media (max-width: 640px) {
+      .community-hero { flex-direction: column; text-align: center; }
+      .community-stats { gap: 20px; justify-content: center; }
+      .community-card { grid-template-columns: 1fr; }
+      .upvote-col { flex-direction: row; justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="page-content">
+    <div class="container" style="max-width: 860px;">
+
+      <!-- Hero Banner -->
+      <div class="community-hero">
+        <div class="community-hero-text">
+          <h2>🏛️ Community Board</h2>
+          <p>Browse active complaints from across all departments.<br>Upvote issues you also face to amplify their priority.</p>
+        </div>
+        <div class="community-stats">
+          <div class="community-stat">
+            <div class="community-stat-num" id="stat-total">—</div>
+            <div class="community-stat-label">Active Issues</div>
+          </div>
+          <div class="community-stat">
+            <div class="community-stat-num" id="stat-upvotes">—</div>
+            <div class="community-stat-label">Total Upvotes</div>
+          </div>
+          <div class="community-stat">
+            <div class="community-stat-num" id="stat-depts">—</div>
+            <div class="community-stat-label">Departments</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="search-bar-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search by title or description…">
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar" style="margin-bottom: 12px;">
+        <select class="form-select" id="filter-dept">
+          <option value="All">All Departments</option>
+          <option>Computer</option>
+          <option>IT</option>
+          <option>Electronics</option>
+          <option>Mechanical</option>
+          <option>Civil</option>
+          <option>Chemical</option>
+        </select>
+        <select class="form-select" id="filter-category">
+          <option value="All">All Categories</option>
+          <option>Infrastructure</option>
+          <option>Academic</option>
+          <option>Hostel</option>
+          <option>Lab Equipment</option>
+          <option>Canteen</option>
+          <option>Library</option>
+          <option>Transport</option>
+          <option>Other</option>
+        </select>
+        <select class="form-select" id="filter-status">
+          <option value="Active">Active Only</option>
+          <option value="All">All Statuses</option>
+          <option value="Submitted">Submitted</option>
+          <option value="Under Review">Under Review</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+        <select class="form-select" id="filter-urgency">
+          <option value="All">All Urgencies</option>
+          <option value="Critical">🟣 Critical</option>
+          <option value="High">🔴 High</option>
+          <option value="Medium">🟡 Medium</option>
+          <option value="Low">🟢 Low</option>
+        </select>
+      </div>
+
+      <!-- Active filter pills -->
+      <div class="active-filters" id="active-filters"></div>
+
+      <!-- Sort Tabs -->
+      <div class="sort-tabs">
+        <button class="sort-tab active" data-sort="upvotes">⬆ Most Upvoted</button>
+        <button class="sort-tab" data-sort="newest">🕐 Newest First</button>
+        <button class="sort-tab" data-sort="urgency">🚨 Most Urgent</button>
+      </div>
+
+      <!-- Results header -->
+      <div class="results-header">
+        <span class="results-count" id="results-count">Loading…</span>
+        <a href="new-complaint.html" class="btn btn-primary btn-small">➕ New Complaint</a>
+      </div>
+
+      <!-- Complaints List -->
+      <div id="community-list" style="display: flex; flex-direction: column; gap: 14px;"></div>
+
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = initPage('Community Board', ['student', 'faculty']);
+      if (!user) return;
+
+      // ── State ──────────────────────────────────────────────────────
+      let sortBy  = 'upvotes';
+      let filters = { dept: 'All', category: 'All', status: 'Active', urgency: 'All', search: '' };
+
+      // ── DOM refs ──────────────────────────────────────────────────
+      const listEl         = document.getElementById('community-list');
+      const searchInput    = document.getElementById('search-input');
+      const filterDept     = document.getElementById('filter-dept');
+      const filterCategory = document.getElementById('filter-category');
+      const filterStatus   = document.getElementById('filter-status');
+      const filterUrgency  = document.getElementById('filter-urgency');
+      const resultsCount   = document.getElementById('results-count');
+      const activePillsEl  = document.getElementById('active-filters');
+      const statTotal      = document.getElementById('stat-total');
+      const statUpvotes    = document.getElementById('stat-upvotes');
+      const statDepts      = document.getElementById('stat-depts');
+
+      // ── Helpers ────────────────────────────────────────────────────
+      const URGENCY_ORDER = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
+
+      const getPublicComplaints = () => getComplaints().filter(c => c && c.id);
+
+      const applyFilters = (list) => {
+        return list.filter(c => {
+          if (filters.dept     !== 'All' && c.department !== filters.dept)     return false;
+          if (filters.category !== 'All' && c.category   !== filters.category) return false;
+          if (filters.urgency  !== 'All' && c.urgency    !== filters.urgency)  return false;
+          if (filters.status === 'Active') {
+            if (c.status === 'Resolved' || c.status === 'Rejected') return false;
+          } else if (filters.status !== 'All') {
+            if (c.status !== filters.status) return false;
+          }
+          if (filters.search) {
+            const q = filters.search.toLowerCase();
+            if (!c.title.toLowerCase().includes(q) && !c.description.toLowerCase().includes(q)) return false;
+          }
+          return true;
+        });
+      };
+
+      const sortComplaints = (list) => {
+        return [...list].sort((a, b) => {
+          if (sortBy === 'upvotes') {
+            const diff = (b.upvotes || 0) - (a.upvotes || 0);
+            return diff !== 0 ? diff : new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
+          if (sortBy === 'urgency') {
+            const diff = (URGENCY_ORDER[b.urgency] || 0) - (URGENCY_ORDER[a.urgency] || 0);
+            return diff !== 0 ? diff : (b.upvotes || 0) - (a.upvotes || 0);
+          }
+          return 0;
+        });
+      };
+
+      // ── Banner stats ──────────────────────────────────────────────
+      const refreshBannerStats = () => {
+        const active = getPublicComplaints().filter(c => c.status !== 'Resolved' && c.status !== 'Rejected');
+        statTotal.textContent   = active.length;
+        statUpvotes.textContent = active.reduce((s, c) => s + (c.upvotes || 0), 0);
+        statDepts.textContent   = new Set(active.map(c => c.department)).size;
+      };
+
+      // ── Active filter pills ────────────────────────────────────────
+      const refreshPills = () => {
+        const pills = [];
+        if (filters.dept     !== 'All') pills.push({ label: `Dept: ${filters.dept}`,      key: 'dept' });
+        if (filters.category !== 'All') pills.push({ label: `Cat: ${filters.category}`,   key: 'category' });
+        if (filters.urgency  !== 'All') pills.push({ label: `Urgency: ${filters.urgency}`,key: 'urgency' });
+        if (filters.status !== 'Active' && filters.status !== 'All')
+          pills.push({ label: `Status: ${filters.status}`, key: 'status' });
+        if (filters.search)             pills.push({ label: `"${filters.search}"`,         key: 'search' });
+
+        activePillsEl.innerHTML = pills.map(p => `
+          <span class="filter-pill">
+            ${p.label}
+            <button class="filter-pill-close" onclick="clearFilter('${p.key}')">✕</button>
+          </span>
+        `).join('');
+      };
+
+      window.clearFilter = (key) => {
+        const defaults = { dept: 'All', category: 'All', status: 'Active', urgency: 'All', search: '' };
+        filters[key] = defaults[key];
+        if (key === 'dept')     filterDept.value     = 'All';
+        if (key === 'category') filterCategory.value = 'All';
+        if (key === 'status')   filterStatus.value   = 'Active';
+        if (key === 'urgency')  filterUrgency.value  = 'All';
+        if (key === 'search')   searchInput.value    = '';
+        render();
+      };
+
+      // ── Main render ───────────────────────────────────────────────
+      const render = () => {
+        const all     = getPublicComplaints();
+        const sorted  = sortComplaints(applyFilters(all));
+
+        resultsCount.textContent = sorted.length === 0
+          ? 'No complaints match your filters'
+          : `${sorted.length} complaint${sorted.length !== 1 ? 's' : ''} found`;
+
+        refreshPills();
+
+        if (sorted.length === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state card">
+              <div class="empty-state-icon">🔍</div>
+              <div class="empty-state-text">No complaints found for the selected filters.</div>
+              <button class="btn btn-outline" style="margin-top:16px" onclick="resetAllFilters()">Clear All Filters</button>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = sorted.map(c => {
+          const alreadyVoted = c.upvotedBy && c.upvotedBy.includes(user.id);
+          const isOwner      = c.userId === user.id;
+          const votedClass   = alreadyVoted ? 'voted' : '';
+          const disabled     = isOwner || alreadyVoted;
+          const voteTitle    = isOwner      ? 'You submitted this complaint'
+                             : alreadyVoted ? 'Already upvoted'
+                             : 'Upvote this complaint';
+          return `
+            <div class="community-card">
+              <div>
+                <div class="community-card-title">${c.title}</div>
+                <div class="community-card-desc">${c.description}</div>
+                <div class="community-card-meta">
+                  <span class="status-badge ${getStatusClass(c.status)}" style="font-size:11px;padding:2px 8px;">${c.status}</span>
+                  <span class="urgency-badge ${getUrgencyClass(c.urgency)}" style="font-size:11px;padding:2px 8px;">${c.urgency}</span>
+                  <span class="meta-chip">🏢 ${c.department}</span>
+                  <span class="meta-chip">🏷️ ${c.category}</span>
+                  <span style="font-size:12px;color:var(--outline);">📅 ${timeAgo(c.createdAt)}</span>
+                  <span style="font-size:12px;color:var(--outline);">👤 ${c.anonymous ? 'Anonymous' : (c.userName || 'Community Member')}</span>
+                  ${isOwner ? '<span style="font-size:12px;color:#1D4ED8;font-weight:600;">✏️ Your complaint</span>' : ''}
+                </div>
+              </div>
+              <div class="upvote-col">
+                <button class="upvote-big-btn ${votedClass}"
+                        onclick="handleUpvote('${c.id}')"
+                        title="${voteTitle}"
+                        ${disabled ? 'disabled' : ''}>
+                  ⬆
+                  <span class="upvote-count">${c.upvotes || 0}</span>
+                </button>
+                <span class="upvote-label">Votes</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      };
+
+      // ── Upvote handler ─────────────────────────────────────────────
+      window.handleUpvote = (id) => {
+        try {
+          const c = getComplaints().find(x => x.id === id);
+          if (!c)                               { showToast('Complaint not found.', 'error'); return; }
+          if (c.userId === user.id)             { showToast('You cannot upvote your own complaint.', 'info'); return; }
+          if (c.upvotedBy && c.upvotedBy.includes(user.id)) { showToast('You already upvoted this.', 'info'); return; }
+          upvoteComplaint(id, user.id);
+          showToast('Upvoted! Thanks for raising your voice. 🙌', 'success');
+          refreshBannerStats();
+          render();
+        } catch (e) {
+          console.error('[Community] upvote error:', e);
+          showToast('Something went wrong. Please try again.', 'error');
+        }
+      };
+
+      // ── Reset all filters ─────────────────────────────────────────
+      window.resetAllFilters = () => {
+        filters = { dept: 'All', category: 'All', status: 'Active', urgency: 'All', search: '' };
+        filterDept.value = filterCategory.value = filterUrgency.value = 'All';
+        filterStatus.value = 'Active';
+        searchInput.value = '';
+        render();
+      };
+
+      // ── Event wiring ───────────────────────────────────────────────
+      filterDept.addEventListener('change',     () => { filters.dept     = filterDept.value;     render(); });
+      filterCategory.addEventListener('change', () => { filters.category = filterCategory.value; render(); });
+      filterStatus.addEventListener('change',   () => { filters.status   = filterStatus.value;   render(); });
+      filterUrgency.addEventListener('change',  () => { filters.urgency  = filterUrgency.value;  render(); });
+
+      let debounce;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => { filters.search = searchInput.value.trim(); render(); }, 250);
+      });
+
+      document.querySelectorAll('.sort-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.sort-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          sortBy = tab.dataset.sort;
+          render();
+        });
+      });
+
+      // ── Init ──────────────────────────────────────────────────────
+      refreshBannerStats();
+      render();
+    });
+  </script>
+</body>
+</html>

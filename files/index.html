@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='description' content='GrievEase - Complaint Management System for Datta Meghe College of Engineering'>
+  <title>GrievEase — DMCE Complaint Portal</title>
+  <!-- Google Fonts -->
+  <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap' rel='stylesheet'>
+  <!-- styles.css -->
+  <link rel='stylesheet' href='css/styles.css'>
+  <style>
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+    .feature-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 {
+      color: #003366;
+      margin-bottom: 12px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .feature-card p {
+      color: #43474F;
+      font-family: 'Work Sans', sans-serif;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Section -->
+  <section class='hero-section' style="background: #003366; color: white; padding: 80px 20px; text-align: center;">
+    <div class='hero-badge'>🏫 Datta Meghe College of Engineering</div>
+    <h1 class='headline-xl' style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 48px; margin-bottom: 24px;">GrievEase</h1>
+    <p class='body-lg' style="font-family: 'Work Sans', sans-serif; font-size: 18px; max-width: 600px; margin: 0 auto 40px auto; color: #E1F0FF;">Your voice matters. Submit, track, and resolve complaints seamlessly with our digital grievance portal.</p>
+    <div class='hero-actions' style="display: flex; gap: 16px; justify-content: center; margin-bottom: 48px;">
+      <a href='login.html' class='btn btn-primary' style="background: #FF8C00; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Get Started →</a>
+    </div>
+    <div class='hero-stats' id='hero-stats' style="display: flex; gap: 40px; justify-content: center;">
+      <!-- Filled by JS -->
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class='features-section' style="padding: 80px 20px; background: #F8FAFC;">
+    <div class='container' style="max-width: 1200px; margin: 0 auto;">
+      <h2 class='headline-lg' style='text-align:center;margin-bottom:48px;color:#003366; font-family: "Plus Jakarta Sans", sans-serif;'>How It Works</h2>
+      <div class='feature-grid'>
+        <!-- 4 feature cards: Submit, Track, Resolve, Notify -->
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <h3>Submit Complaint</h3>
+          <p>Easily lodge your grievances securely. You can even submit anonymously if needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Track Progress</h3>
+          <p>Keep track of the status of your complaint in real-time right from your dashboard.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✅</div>
+          <h3>Quick Resolution</h3>
+          <p>Dedicated staff resolve issues promptly to ensure maximum satisfaction.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔔</div>
+          <h3>Stay Notified</h3>
+          <p>Receive timely updates when the status of your complaint changes or is resolved.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style='text-align:center;padding:40px;color:#737780;font-size:14px; background: white; font-family: "Work Sans", sans-serif;'>
+    © 2026 GrievEase — DMCE. All rights reserved.
+  </footer>
+
+  <script src='js/storage.js'></script>
+  <script>
+    // Compute live stats from localStorage
+    const complaints = getComplaints();
+    const total = complaints.length;
+    const resolved = complaints.filter(c => c.status === 'Resolved').length;
+    const pending = complaints.filter(c => c.status !== 'Resolved' && c.status !== 'Rejected').length;
+    document.getElementById('hero-stats').innerHTML = `
+      <div><div class='hero-stat-number' style="font-size: 32px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;">${total}</div><div class='hero-stat-label' style="color: #E1F0FF; font-family: 'Work Sans', sans-serif;">Total Complaints</div></div>
+      <div><div class='hero-stat-number' style="font-size: 32px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;">${resolved}</div><div class='hero-stat-label' style="color: #E1F0FF; font-family: 'Work Sans', sans-serif;">Resolved</div></div>
+      <div><div class='hero-stat-number' style="font-size: 32px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;">${pending}</div><div class='hero-stat-label' style="color: #E1F0FF; font-family: 'Work Sans', sans-serif;">In Progress</div></div>
+    `;
+  </script>
+</body>
+</html>

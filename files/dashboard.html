@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — GrievEase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  
+  <div class="page-content">
+    <div class="container">
+      <div class="page-header">
+        <h1 class="headline-lg" id="welcome-message">Dashboard</h1>
+        <p class="body-md" style="color:var(--on-surface-variant)">Overview of your complaints and their statuses.</p>
+      </div>
+
+      <div class="stat-cards" id="user-stats">
+        <!-- populated by js -->
+      </div>
+
+      <div class="section-header" style="margin-top:40px">
+        <h2 class="headline-md">Your Recent Complaints</h2>
+        <a href="new-complaint.html" class="btn btn-primary">➕ New Complaint</a>
+      </div>
+
+      <div class="filter-bar">
+        <select class="form-select" id="filter-status">
+          <option value="All">All Statuses</option>
+          <option value="Submitted">Submitted</option>
+          <option value="Under Review">Under Review</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+
+      <div id="complaints-list" style="display:flex; flex-direction:column; gap:16px;">
+        <!-- populated by js -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = initPage('Dashboard', ['student', 'faculty']);
+      if (!user) return;
+
+      document.getElementById('welcome-message').innerText = `Welcome, ${user.name}!`;
+
+      const allComplaints = getComplaints();
+      const myComplaints = allComplaints.filter(c => c.userId === user.id);
+      
+      const total = myComplaints.length;
+      const resolved = myComplaints.filter(c => c.status === 'Resolved').length;
+      const inProgress = myComplaints.filter(c => c.status === 'In Progress' || c.status === 'Under Review').length;
+
+      document.getElementById('user-stats').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#F0F7FF; color:#003366">📝</div>
+          <div class="stat-number">${total}</div>
+          <div class="stat-label">Total Filed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#ECFDF5; color:#10B981">✅</div>
+          <div class="stat-number">${resolved}</div>
+          <div class="stat-label">Resolved</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FFFBEB; color:#F59E0B">⏳</div>
+          <div class="stat-number">${inProgress}</div>
+          <div class="stat-label">In Progress</div>
+        </div>
+      `;
+
+      const filterSelect = document.getElementById('filter-status');
+      const listContainer = document.getElementById('complaints-list');
+
+      const renderList = () => {
+        const filter = filterSelect.value;
+        const filtered = myComplaints
+          .filter(c => filter === 'All' || c.status === filter)
+          .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        if (filtered.length === 0) {
+          listContainer.innerHTML = `
+            <div class="empty-state card">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-text">No complaints found.</div>
+            </div>
+          `;
+          return;
+        }
+
+        listContainer.innerHTML = filtered.map(c => `
+          <div class="card complaint-card" onclick="window.location.href='track.html?id=${c.id}'">
+            <div class="complaint-card-header">
+              <div class="complaint-card-title">${c.title}</div>
+              <span class="status-badge ${getStatusClass(c.status)}">${c.status}</span>
+            </div>
+            <div class="complaint-card-meta">
+              <span>📅 ${formatDateShort(c.createdAt)}</span>
+              <span>🏢 ${c.department}</span>
+              <span>🏷️ ${c.category}</span>
+            </div>
+            <div class="complaint-card-description">${c.description}</div>
+            <div class="complaint-card-footer">
+              <span class="urgency-badge ${getUrgencyClass(c.urgency)}">${c.urgency} Urgency</span>
+              <span style="font-size:13px; color:var(--on-surface-variant)">ID: ${c.id.substr(2,6).toUpperCase()}</span>
+            </div>
+          </div>
+        `).join('');
+      };
+
+      filterSelect.addEventListener('change', renderList);
+      renderList();
+    });
+  </script>
+</body>
+</html>

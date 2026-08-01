@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — GrievEase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="page-content">
+    <div class="container">
+      
+      <div id="view-list" class="detail-view active">
+        <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h1 class="headline-lg">Admin Workspace</h1>
+            <p class="body-md" style="color:var(--on-surface-variant)">Manage and resolve institutional complaints.</p>
+          </div>
+          <button class="btn btn-danger btn-small" onclick="resetData()">🗑️ Clear All Data</button>
+        </div>
+
+        <div class="stat-cards" id="admin-stats">
+          <!-- populated by js -->
+        </div>
+
+        <div class="section-header" style="margin-top:40px">
+          <h2 class="headline-md">Complaint Queue</h2>
+        </div>
+
+        <div class="filter-bar">
+          <select class="form-select" id="filter-status">
+            <option value="All">All Statuses</option>
+            <option value="Submitted">Submitted (New)</option>
+            <option value="Under Review">Under Review</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Pending Confirmation">Pending Confirmation</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Reopened">Reopened</option>
+            <option value="Escalated to Admin">Escalated to Admin</option>
+          </select>
+          <select class="form-select" id="filter-dept">
+            <option value="All">All Departments</option>
+            <option value="Computer">Computer</option>
+            <option value="IT">IT</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Mechanical">Mechanical</option>
+            <option value="Civil">Civil</option>
+            <option value="Chemical">Chemical</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Title & Info</th>
+                <th>Urgency</th>
+                <th>Status</th>
+                <th>Upvotes</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-table-body">
+              <!-- populated by js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detail View for Admin -->
+      <div id="view-detail" class="detail-view">
+        <button class="detail-back" id="btn-back">← Back to Queue</button>
+        <div class="card" id="admin-detail-card">
+          <!-- populated by js -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = initPage('Admin Panel', ['admin', 'department_admin']);
+      if (!user) return;
+
+      const viewList = document.getElementById('view-list');
+      const viewDetail = document.getElementById('view-detail');
+      
+      const filterStatus = document.getElementById('filter-status');
+      const filterDept = document.getElementById('filter-dept');
+
+      const renderDashboard = () => {
+        const complaints = getComplaints();
+        const total = complaints.length;
+        const pending = complaints.filter(c => c.status === 'Submitted').length;
+        const inProgress = complaints.filter(c => c.status === 'Under Review' || c.status === 'In Progress').length;
+        const resolved = complaints.filter(c => c.status === 'Resolved').length;
+
+        document.getElementById('admin-stats').innerHTML = `
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#F0F7FF; color:#003366">📬</div>
+            <div class="stat-number">${pending}</div>
+            <div class="stat-label">New / Submitted</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#FFFBEB; color:#F59E0B">⏳</div>
+            <div class="stat-number">${inProgress}</div>
+            <div class="stat-label">In Progress</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#ECFDF5; color:#10B981">✅</div>
+            <div class="stat-number">${resolved}</div>
+            <div class="stat-label">Resolved</div>
+          </div>
+        `;
+
+        let filtered = complaints;
+        if (filterStatus.value !== 'All') {
+          filtered = filtered.filter(c => c.status === filterStatus.value);
+        }
+        if (filterDept.value !== 'All') {
+          filtered = filtered.filter(c => c.department === filterDept.value);
+        }
+        filtered.sort((a,b) => {
+          const upvotesA = a.upvotes || 0;
+          const upvotesB = b.upvotes || 0;
+          if (upvotesA !== upvotesB) return upvotesB - upvotesA;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+        const tbody = document.getElementById('admin-table-body');
+        if (filtered.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:32px">No complaints match filters.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = filtered.map(c => `
+          <tr>
+            <td style="font-family:monospace; color:var(--outline)">${c.id.substr(2,6).toUpperCase()}</td>
+            <td>
+              <div style="font-weight:600; color:var(--on-surface)">${c.title}</div>
+              <div style="font-size:12px; color:var(--outline); margin-top:4px">${c.department} • ${c.category}</div>
+            </td>
+            <td><span class="urgency-badge ${getUrgencyClass(c.urgency)}">${c.urgency}</span></td>
+            <td><span class="status-badge ${getStatusClass(c.status)}">${c.status}</span></td>
+            <td><div style="font-weight:600; color:#F59E0B">⬆ ${c.upvotes || 0}</div></td>
+            <td style="color:var(--outline)">${formatDateShort(c.createdAt)}</td>
+            <td class="actions-cell">
+              <button class="btn btn-outline btn-small" onclick="manageComplaint('${c.id}')">Manage</button>
+            </td>
+          </tr>
+        `).join('');
+      };
+
+      window.manageComplaint = (id) => {
+        const c = getComplaints().find(x => x.id === id);
+        if (!c) return;
+
+        if (c.status === 'Escalated to Admin' && user.role !== 'admin') {
+          showToast('This complaint has been escalated to the Super Admin.', 'error');
+          return;
+        }
+
+        viewList.classList.remove('active');
+        viewDetail.classList.add('active');
+
+        document.getElementById('admin-detail-card').innerHTML = `
+          <div class="detail-header">
+            <div>
+              <h2 class="headline-md" style="margin-bottom:8px">${c.title}</h2>
+              <div style="font-size:14px; color:var(--outline)">
+                Reported by: <strong>${c.anonymous ? 'Anonymous Student' : c.userName}</strong> • ${formatDate(c.createdAt)}
+              </div>
+            </div>
+            <span class="status-badge ${getStatusClass(c.status)}" style="font-size:14px; padding:6px 16px">${c.status}</span>
+          </div>
+          
+          <div class="detail-meta-grid" style="background:var(--background); padding:16px; border-radius:12px; margin-bottom:24px">
+            <div class="detail-meta-item">
+              <div class="meta-label">Department</div>
+              <div class="meta-value">${c.department}</div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Category</div>
+              <div class="meta-value">${c.category}</div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Urgency</div>
+              <div class="meta-value"><span class="urgency-badge ${getUrgencyClass(c.urgency)}">${c.urgency}</span></div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Upvotes</div>
+              <div class="meta-value">${c.upvotes || 0}</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:32px">
+            <h4 class="headline-sm" style="margin-bottom:8px">Description</h4>
+            <p class="body-md" style="white-space:pre-wrap">${c.description}</p>
+            ${c.image ? `<img src="${c.image}" class="detail-image" style="margin-top:16px; max-height:400px">` : ''}
+          </div>
+
+          <div style="border-top:1px solid var(--surface-container); padding-top:24px">
+            <h3 class="headline-sm" style="margin-bottom:16px">Update Status</h3>
+            <div class="form-group">
+              <label class="form-label">New Status</label>
+              <select class="form-select" id="update-status" onchange="window.handleStatusChange()">
+                ${c.status === 'Escalated to Admin' && user.role === 'admin' ? `
+                  <option value="Escalated to Admin" selected>Escalated to Admin</option>
+                  <option value="Resolved">Resolved (Final)</option>
+                  <option value="Rejected">Rejected (Final)</option>
+                ` : `
+                  <option value="Submitted" ${c.status==='Submitted'?'selected':''}>Submitted</option>
+                  <option value="Under Review" ${c.status==='Under Review'?'selected':''}>Under Review</option>
+                  <option value="In Progress" ${c.status==='In Progress'?'selected':''}>In Progress</option>
+                  <option value="Pending Confirmation" ${c.status==='Pending Confirmation'?'selected':''}>Pending Confirmation (Submit for User Review)</option>
+                  <option value="Rejected" ${c.status==='Rejected'?'selected':''}>Rejected</option>
+                `}
+              </select>
+            </div>
+            
+            <div id="proof-section" style="display:none; margin-bottom: 24px; padding: 16px; background: #FFF7ED; border-radius: 12px; border: 1px solid #FFEDD5;">
+              <h4 class="headline-sm" style="color: #92400E; margin-bottom: 8px;">Resolution Proof Required</h4>
+              <p class="body-md" style="font-size: 13px; color: #92400E; margin-bottom: 12px;">Provide a note or upload an image to prove the issue is resolved.</p>
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Proof Note</label>
+                <textarea class="form-textarea" id="proof-note" placeholder="Describe how it was resolved..."></textarea>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Proof Image (Optional)</label>
+                <input type="file" id="proof-image" class="form-input" accept="image/*">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Official Remark (Optional)</label>
+              <textarea class="form-textarea" id="update-remark" placeholder="Add a remark for the timeline..."></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="submitUpdate('${c.id}')">Save Changes</button>
+          </div>
+        `;
+        
+        setTimeout(() => window.handleStatusChange(), 0);
+      };
+
+      window.handleStatusChange = () => {
+        const select = document.getElementById('update-status');
+        const proofSection = document.getElementById('proof-section');
+        if (select && proofSection) {
+          if (select.value === 'Pending Confirmation') {
+            proofSection.style.display = 'block';
+          } else {
+            proofSection.style.display = 'none';
+          }
+        }
+      };
+
+      window.submitUpdate = (id) => {
+        const newStatus = document.getElementById('update-status').value;
+        const remark = document.getElementById('update-remark').value.trim();
+        
+        let updates = { status: newStatus, adminRemark: remark || null };
+        const c = getComplaints().find(x => x.id === id);
+
+        if (newStatus === 'Pending Confirmation') {
+          const proofNote = document.getElementById('proof-note').value.trim();
+          const proofImageInput = document.getElementById('proof-image');
+          
+          if (!proofNote && (!proofImageInput.files || proofImageInput.files.length === 0)) {
+            showToast('Please provide a proof note or image.', 'error');
+            return;
+          }
+
+          if (proofImageInput.files && proofImageInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              updates.resolutionProof = {
+                note: proofNote,
+                image: e.target.result,
+                timestamp: new Date().toISOString()
+              };
+              finalizeUpdate(id, updates, c);
+            };
+            reader.readAsDataURL(proofImageInput.files[0]);
+            return;
+          } else {
+            updates.resolutionProof = {
+              note: proofNote,
+              image: null,
+              timestamp: new Date().toISOString()
+            };
+          }
+        }
+        
+        if (c.status === 'Escalated to Admin' && user.role === 'admin' && (newStatus === 'Resolved' || newStatus === 'Rejected')) {
+          if (!remark) {
+            showToast('You must provide a final mandatory remark for escalated complaints.', 'error');
+            return;
+          }
+          updates.adminRemark = `[SUPER ADMIN FINAL DECISION] ${remark}`;
+        }
+        
+        finalizeUpdate(id, updates, c);
+      };
+
+      const finalizeUpdate = (id, updates, c) => {
+        const updated = updateComplaint(id, updates, user.name);
+
+        if (updated) {
+          // Notify user
+          addNotification({
+            userId: updated.userId,
+            message: `Status of "${updated.title}" changed to ${updates.status}`,
+            complaintId: updated.id,
+            type: 'status_change'
+          });
+
+          showToast('Complaint updated successfully!', 'success');
+          
+          viewDetail.classList.remove('active');
+          viewList.classList.add('active');
+          renderDashboard();
+        }
+      };
+
+      document.getElementById('btn-back').addEventListener('click', () => {
+        viewDetail.classList.remove('active');
+        viewList.classList.add('active');
+        renderDashboard();
+      });
+
+      window.resetData = () => {
+        if (confirm("Are you sure you want to clear ALL data? This will wipe all users, complaints, and sessions.")) {
+          localStorage.clear();
+          alert("All data wiped. Redirecting to login...");
+          window.location.href = "login.html";
+        }
+      };
+
+      filterStatus.addEventListener('change', renderDashboard);
+      filterDept.addEventListener('change', renderDashboard);
+
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>

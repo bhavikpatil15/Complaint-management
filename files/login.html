@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — GrievEase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-container fade-in">
+      <div class="auth-logo">
+        <h1>🏫 GrievEase</h1>
+        <p>DMCE Complaint Management System</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login">Login</button>
+        <button class="auth-tab" id="tab-signup">Sign Up</button>
+      </div>
+
+      <div id="form-login">
+        <form id="login-form">
+          <div class="form-group">
+            <label class="form-label">Email or Username</label>
+            <input type="text" class="form-input" id="login-email" placeholder="e.g., student@dmce.ac.in or hod_computer" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-input" id="login-password" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+        </form>
+        <div style="margin-top:24px; font-size:13px; color:#737780; background:#F8FAFC; padding:12px; border-radius:8px;">
+          <strong>Demo Credentials:</strong><br>
+          Student: rahul@dmce.ac.in / student123<br>
+          Faculty: priya@dmce.ac.in / faculty123<br>
+          Admin: admin@dmce.ac.in / admin123
+        </div>
+      </div>
+
+      <div id="form-signup" style="display:none">
+        <form id="signup-form">
+          <div class="form-group">
+            <label class="form-label">I am a...</label>
+            <div class="role-selector" id="signup-role">
+              <div class="role-btn active" data-role="student">Student</div>
+              <div class="role-btn" data-role="faculty">Faculty</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-input" id="signup-name" placeholder="John Doe" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-input" id="signup-email" placeholder="name@dmce.ac.in" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-input" id="signup-password" placeholder="••••••••" required minlength="6">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check if already logged in
+      const session = getSession();
+      const VALID_ROLES = ['student', 'faculty', 'admin', 'department_admin'];
+      if (session && VALID_ROLES.includes(session.role)) {
+        window.location.href = (session.role === 'admin' || session.role === 'department_admin') ? 'admin.html' : 'dashboard.html';
+        return;
+      } else if (session) {
+        // Session exists but has a bad/unknown role — wipe it instead of
+        // redirecting, or we bounce straight back here in a loop.
+        clearSession();
+      }
+
+      // Handle query param for signup tab
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('tab') === 'signup') {
+        switchTab('signup');
+      }
+
+      const tabLogin = document.getElementById('tab-login');
+      const tabSignup = document.getElementById('tab-signup');
+      const formLogin = document.getElementById('form-login');
+      const formSignup = document.getElementById('form-signup');
+      
+      tabLogin.addEventListener('click', () => switchTab('login'));
+      tabSignup.addEventListener('click', () => switchTab('signup'));
+
+      function switchTab(tab) {
+        if (tab === 'login') {
+          tabLogin.classList.add('active');
+          tabSignup.classList.remove('active');
+          formLogin.style.display = 'block';
+          formSignup.style.display = 'none';
+        } else {
+          tabSignup.classList.add('active');
+          tabLogin.classList.remove('active');
+          formSignup.style.display = 'block';
+          formLogin.style.display = 'none';
+        }
+      }
+
+      // Signup role selection
+      let selectedRole = 'student';
+      document.querySelectorAll('#signup-role .role-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('#signup-role .role-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          selectedRole = this.getAttribute('data-role');
+        });
+      });
+
+      // Login submit
+      document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        
+        // Check fixed admin accounts first
+        let user = window.ADMIN_ACCOUNTS ? window.ADMIN_ACCOUNTS.find(u => u.username === email && u.password === password) : null;
+        
+        // If not matched, fallback to normal local storage users
+        if (!user) {
+          const users = getUsers();
+          user = users.find(u => u.email === email && u.password === password);
+        }
+        
+        if (user) {
+          // Add a dummy id and name if it's a fixed admin account without them
+          if (!user.id) user.id = 'admin_' + user.username;
+          if (!user.name) user.name = user.username;
+          
+          setSession(user);
+          window.location.href = (user.role === 'admin' || user.role === 'department_admin') ? 'admin.html' : 'dashboard.html';
+        } else {
+          showToast('Invalid credentials', 'error');
+        }
+      });
+
+      // Signup submit
+      document.getElementById('signup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value.trim();
+        const users = getUsers();
+        if (users.find(u => u.email === email)) {
+          showToast('Email already exists. Please login.', 'error');
+          return;
+        }
+
+        const user = {
+          name: document.getElementById('signup-name').value.trim(),
+          email: email,
+          password: document.getElementById('signup-password').value,
+          role: selectedRole
+        };
+
+        const newUser = addUser(user);
+        setSession(newUser);
+        window.location.href = 'dashboard.html';
+      });
+    });
+  </script>
+</body>
+</html>

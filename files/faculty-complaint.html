@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Complaints Board — GrievEase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="page-content">
+    <div class="container">
+      <div class="page-header">
+        <h1 class="headline-lg">Faculty Board</h1>
+        <p class="body-md" style="color:var(--on-surface-variant)">View and support complaints raised by other staff and students.</p>
+      </div>
+
+      <div class="filter-bar">
+        <select class="form-select" id="filter-dept">
+          <option value="All">All Departments</option>
+          <option value="Computer">Computer</option>
+          <option value="IT">IT</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Mechanical">Mechanical</option>
+          <option value="Civil">Civil</option>
+          <option value="Chemical">Chemical</option>
+        </select>
+        <select class="form-select" id="filter-sort">
+          <option value="recent">Most Recent</option>
+          <option value="upvotes">Most Upvoted</option>
+        </select>
+      </div>
+
+      <div id="complaints-list" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:24px;">
+        <!-- populated by js -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = initPage('Faculty Complaint', ['faculty']);
+      if (!user) return;
+
+      const listContainer = document.getElementById('complaints-list');
+      const filterDept = document.getElementById('filter-dept');
+      const filterSort = document.getElementById('filter-sort');
+
+      const renderList = () => {
+        let complaints = getComplaints(); // All complaints
+
+        const dept = filterDept.value;
+        if (dept !== 'All') {
+          complaints = complaints.filter(c => c.department === dept);
+        }
+
+        const sort = filterSort.value;
+        if (sort === 'recent') {
+          complaints.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+        } else if (sort === 'upvotes') {
+          complaints.sort((a,b) => (b.upvotes || 0) - (a.upvotes || 0));
+        }
+
+        if (complaints.length === 0) {
+          listContainer.innerHTML = `
+            <div class="empty-state card" style="grid-column:1/-1">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-text">No complaints found.</div>
+            </div>
+          `;
+          return;
+        }
+
+        listContainer.innerHTML = complaints.map(c => {
+          const hasUpvoted = c.upvotedBy && c.upvotedBy.includes(user.id);
+          return `
+            <div class="card">
+              <div class="complaint-card-header">
+                <div class="complaint-card-title">${c.title}</div>
+                <span class="status-badge ${getStatusClass(c.status)}">${c.status}</span>
+              </div>
+              <div class="complaint-card-meta" style="margin-bottom:12px">
+                <span>🏢 ${c.department}</span>
+                <span>👤 ${c.anonymous ? 'Anonymous' : c.userName}</span>
+              </div>
+              <div class="complaint-card-description" style="-webkit-line-clamp:3">${c.description}</div>
+              <div class="complaint-card-footer">
+                <button class="upvote-btn ${hasUpvoted ? 'voted' : ''}" onclick="handleUpvote('${c.id}')" ${hasUpvoted ? 'disabled' : ''}>
+                  👍 ${c.upvotes || 0} Supports
+                </button>
+                <span class="urgency-badge ${getUrgencyClass(c.urgency)}">${c.urgency}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      };
+
+      window.handleUpvote = (id) => {
+        const updated = upvoteComplaint(id, user.id);
+        if (updated) {
+          renderList();
+        }
+      };
+
+      filterDept.addEventListener('change', renderList);
+      filterSort.addEventListener('change', renderList);
+
+      renderList();
+    });
+  </script>
+</body>
+</html>

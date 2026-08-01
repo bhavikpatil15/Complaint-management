@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Complaints — GrievEase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="navbar"></div>
+  <div class="page-content">
+    <div class="container" style="max-width:800px">
+      
+      <!-- List View -->
+      <div id="view-list" class="detail-view active">
+        <div class="page-header">
+          <h1 class="headline-lg">Track Complaints</h1>
+          <p class="body-md" style="color:var(--on-surface-variant)">View the status and timeline of your submitted complaints.</p>
+        </div>
+        
+        <div id="complaints-list" style="display:flex; flex-direction:column; gap:16px;">
+          <!-- populated by js -->
+        </div>
+      </div>
+
+      <!-- Detail View -->
+      <div id="view-detail" class="detail-view">
+        <button class="detail-back" id="btn-back">← Back to tracking</button>
+        
+        <div class="card" id="detail-card">
+          <!-- populated by js -->
+        </div>
+        
+        <div class="card" style="margin-top:24px">
+          <h3 class="headline-md" style="margin-bottom:24px">Status Timeline</h3>
+          <div class="timeline" id="detail-timeline">
+            <!-- populated by js -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = initPage('Track Complaints', ['student', 'faculty']);
+      if (!user) return;
+
+      const viewList = document.getElementById('view-list');
+      const viewDetail = document.getElementById('view-detail');
+      const listContainer = document.getElementById('complaints-list');
+      
+      const allComplaints = getComplaints();
+      const myComplaints = allComplaints
+        .filter(c => c.userId === user.id)
+        .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      const renderList = () => {
+        if (myComplaints.length === 0) {
+          listContainer.innerHTML = `
+            <div class="empty-state card">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-text">You haven't submitted any complaints yet.</div>
+              <button class="btn btn-primary" style="margin-top:16px" onclick="window.location.href='new-complaint.html'">Submit One Now</button>
+            </div>
+          `;
+          return;
+        }
+
+        listContainer.innerHTML = myComplaints.map(c => `
+          <div class="card complaint-card" onclick="openDetail('${c.id}')">
+            <div class="complaint-card-header">
+              <div class="complaint-card-title">${c.title}</div>
+              <span class="status-badge ${getStatusClass(c.status)}">${c.status}</span>
+            </div>
+            <div class="complaint-card-meta">
+              <span>📅 ${formatDateShort(c.createdAt)}</span>
+              <span>🏢 ${c.department}</span>
+              <span>🏷️ ${c.category}</span>
+            </div>
+          </div>
+        `).join('');
+      };
+
+      window.openDetail = (id) => {
+        const c = getComplaints().find(x => x.id === id);
+        if (!c || c.userId !== user.id) {
+          showToast('Only your submitted complaints can be tracked here.', 'error');
+          return;
+        }
+
+        viewList.classList.remove('active');
+        viewDetail.classList.add('active');
+        
+        // Update URL without reload
+        const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?id=' + id;
+        window.history.pushState({path:newurl}, '', newurl);
+
+        let imgHtml = '';
+        if (c.image) {
+          imgHtml = `<img src="${c.image}" class="detail-image" alt="Attachment">`;
+        }
+
+        let adminRemarkHtml = '';
+        if (c.adminRemark) {
+          adminRemarkHtml = `
+            <div class="admin-remark-card">
+              <div style="font-weight:600;font-size:12px;color:#1E3A8A;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Official Remark</div>
+              <div style="font-size:14px;color:#191C1E">${c.adminRemark}</div>
+            </div>
+          `;
+        }
+
+        let proofHtml = '';
+        if (c.resolutionProof) {
+          proofHtml = `
+            <div style="margin-top:24px; padding: 16px; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px;">
+              <h4 class="headline-sm" style="color: #166534; margin-bottom: 8px;">Resolution Proof</h4>
+              <p class="body-md" style="color: #166534; margin-bottom: ${c.resolutionProof.image ? '16px' : '0'};">${c.resolutionProof.note}</p>
+              ${c.resolutionProof.image ? `<img src="${c.resolutionProof.image}" style="max-width: 100%; border-radius: 8px;">` : ''}
+            </div>
+          `;
+        }
+
+        let confirmationHtml = '';
+        if (c.status === 'Pending Confirmation') {
+          confirmationHtml = `
+            <div id="confirmation-panel" style="margin-top:24px; padding: 16px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 12px;">
+              <h4 class="headline-sm" style="color: #92400E; margin-bottom: 16px;">Has this issue been resolved?</h4>
+              <div style="display:flex; gap:12px;">
+                <button class="btn btn-primary" style="background:#10B981" onclick="handleSatisfied('${c.id}')">Satisfied ✅</button>
+                <button class="btn btn-danger" onclick="showNotSatisfiedForm('${c.id}')">Not Satisfied ❌</button>
+              </div>
+            </div>
+            
+            <div id="reopen-form-panel" style="display:none; margin-top:24px; padding: 16px; background: #FEF2F2; border: 1px solid #FEE2E2; border-radius: 12px;">
+              <h4 class="headline-sm" style="color: #991B1B; margin-bottom: 16px;">Why are you not satisfied?</h4>
+              <p class="body-md" style="font-size: 13px; color: #991B1B; margin-bottom: 12px;">Note: If rejected multiple times, this will automatically escalate to the Super Admin.</p>
+              <div class="form-group">
+                <textarea class="form-textarea" id="reopen-reason" placeholder="Explain what is still wrong..."></textarea>
+              </div>
+              <button class="btn btn-danger" onclick="submitReopen('${c.id}')">Reopen Complaint</button>
+            </div>
+          `;
+        }
+
+        let feedbackHtml = '';
+        if (c.status === 'Resolved') {
+          if (c.feedback) {
+            feedbackHtml = `
+              <div style="margin-top:24px; padding: 16px; background: #F8FAFC; border: 1px solid #ECEEF0; border-radius: 12px;">
+                <h4 class="headline-sm" style="margin-bottom: 8px;">Your Feedback</h4>
+                <div style="color:#F59E0B; font-size:18px; margin-bottom:8px;">${'★'.repeat(Number(c.feedback.rating))}${'☆'.repeat(5 - Number(c.feedback.rating))}</div>
+                ${c.feedback.comment ? `<p class="body-md" style="color:#43474F; margin-top:8px">${c.feedback.comment}</p>` : ''}
+              </div>
+            `;
+          } else {
+            feedbackHtml = `
+              <div id="feedback-form-panel" style="margin-top:24px; padding: 16px; background: #F8FAFC; border: 1px solid #ECEEF0; border-radius: 12px;">
+                <h4 class="headline-sm" style="margin-bottom: 16px;">Please rate your experience</h4>
+                <div class="form-group">
+                  <label class="form-label">Rating (1-5)</label>
+                  <select class="form-select" id="feedback-rating">
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Very Poor</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Comment (Optional)</label>
+                  <textarea class="form-textarea" id="feedback-comment" placeholder="Any additional comments?"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="submitFeedback('${c.id}')">Submit Feedback</button>
+              </div>
+            `;
+          }
+        }
+
+        document.getElementById('detail-card').innerHTML = `
+          <div class="detail-header">
+            <div>
+              <h2 class="headline-md" style="margin-bottom:8px">${c.title}</h2>
+              <span class="urgency-badge ${getUrgencyClass(c.urgency)}">${c.urgency} Urgency</span>
+            </div>
+            <span class="status-badge ${getStatusClass(c.status)}">${c.status}</span>
+          </div>
+          <div class="detail-meta-grid">
+            <div class="detail-meta-item">
+              <div class="meta-label">Submitted On</div>
+              <div class="meta-value">${formatDate(c.createdAt)}</div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Department</div>
+              <div class="meta-value">${c.department}</div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Category</div>
+              <div class="meta-value">${c.category}</div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Complaint ID</div>
+              <div class="meta-value">${c.id}</div>
+            </div>
+            <div class="detail-meta-item">
+              <div class="meta-label">Upvotes</div>
+              <div class="meta-value">${c.upvotes || 0}</div>
+            </div>
+          </div>
+          <div style="margin-top:24px">
+            <h4 class="headline-sm" style="margin-bottom:8px">Description</h4>
+            <p class="body-md" style="white-space:pre-wrap">${c.description}</p>
+          </div>
+          ${imgHtml}
+          ${adminRemarkHtml}
+          ${proofHtml}
+          ${confirmationHtml}
+          ${feedbackHtml}
+        `;
+
+        document.getElementById('detail-timeline').innerHTML = c.timeline.map((item, index) => {
+          const isLast = index === c.timeline.length - 1;
+          const isCompleted = c.status === 'Resolved' && isLast;
+          return `
+            <div class="timeline-item">
+              <div class="timeline-dot ${isLast ? 'active' : ''} ${isCompleted ? 'completed' : ''}"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">${formatDate(item.date)}</div>
+                <div class="timeline-text">
+                  <span class="status-badge ${getStatusClass(item.status)}" style="padding:2px 8px; font-size:10px; margin-right:8px">${item.status}</span>
+                  ${item.remark}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      };
+
+      window.handleSatisfied = (id) => {
+        const updated = updateComplaint(id, { status: 'Resolved' }, user.name);
+        if (updated) {
+          openDetail(id);
+        }
+      };
+
+      window.showNotSatisfiedForm = (id) => {
+        document.getElementById('confirmation-panel').style.display = 'none';
+        document.getElementById('reopen-form-panel').style.display = 'block';
+      };
+
+      window.submitFeedback = (id) => {
+        const rating = document.getElementById('feedback-rating').value;
+        const comment = document.getElementById('feedback-comment').value.trim();
+        
+        updateComplaint(id, {
+          feedback: { rating, comment, timestamp: new Date().toISOString() }
+        }, user.name);
+        
+        showToast('Feedback submitted!', 'success');
+        openDetail(id);
+      };
+
+      window.submitReopen = (id) => {
+        const reason = document.getElementById('reopen-reason').value.trim();
+        if (!reason) {
+          showToast('Please provide a reason.', 'error');
+          return;
+        }
+        
+        const c = getComplaints().find(x => x.id === id);
+        const newReopenCount = (c.reopenCount || 0) + 1;
+        
+        let newStatus = 'Reopened';
+        let remark = `[User Rejected Fix] ${reason}`;
+        
+        if (newReopenCount >= 2) {
+          newStatus = 'Escalated to Admin';
+          remark = `[User Rejected Fix - Auto Escalated after 2 unsuccessful attempts] ${reason}`;
+        }
+        
+        const updated = updateComplaint(id, {
+          status: newStatus,
+          reopenCount: newReopenCount,
+          adminRemark: remark
+        }, user.name);
+        
+        if (updated) {
+          showToast(newReopenCount >= 2 ? 'Complaint escalated to Super Admin.' : 'Complaint reopened.', 'success');
+          openDetail(id);
+        }
+      };
+
+      document.getElementById('btn-back').addEventListener('click', () => {
+        viewDetail.classList.remove('active');
+        viewList.classList.add('active');
+        const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.pushState({path:newurl}, '', newurl);
+      });
+
+      // Handle URL param
+      const urlParams = new URLSearchParams(window.location.search);
+      const idParam = urlParams.get('id');
+      if (idParam) {
+        openDetail(idParam);
+      }
+
+      renderList();
+    });
+  </script>
+</body>
+</html>
